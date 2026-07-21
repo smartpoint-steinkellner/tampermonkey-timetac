@@ -9,6 +9,7 @@ the following settings need to be set in order for the plugin to work correctly:
 - "Websitezugriff": "Auf bestimmten Websites"
 - Add the following sites:
   - https://blacklist.tampermonkey.net/*
+  - https://github.com/*
   - https://go.timetac.com/*
 - "Nutzerscripte zulassen": true
 

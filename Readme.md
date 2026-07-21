@@ -25,3 +25,5 @@ Each script contains a version number as part of a header comment.
 
 ## Scripts in this repo
 
+### Overtime Table
+Extending TimeTac by an overlay to summarize the current overtime and days spent at the office / home office.

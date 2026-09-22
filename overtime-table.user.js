@@ -1,8 +1,9 @@
 // ==UserScript==
 // @name         Overtime Table
-// @version      2026-07-21
+// @namespace    http://tampermonkey.net/
+// @version      2026-09-22
 // @downloadURL  https://github.com/smartpoint-steinkellner/tampermonkey-timetac/raw/refs/heads/main/overtime-table.user.js
-// @description  Summarize overtime and days spent at the office / home office
+// @description  Adding a short overview table to summarize timetac informations for better screenshots
 // @author       Sebastian Steinkellner
 // @match        https://go.timetac.com/smartpoint
 // @icon         https://static.timetac.com/img/timetac.png
@@ -37,10 +38,10 @@
 
     class QueryUtil {
         static intervalSelector(
-        container,
-         query,
-         intervalTimeout = 100,
-         condition = null
+            container,
+            query,
+            intervalTimeout = 100,
+            condition = null
         ) {
             ArgUtil.checkRequired(
                 {
@@ -58,10 +59,10 @@
         }
 
         static intervalSelectorAll(
-        container,
-         query,
-         intervalTimeout = 100,
-         condition = null
+            container,
+            query,
+            intervalTimeout = 100,
+            condition = null
         ) {
             ArgUtil.checkRequired(
                 {
@@ -145,7 +146,7 @@
                 `a[data-userguidingid=${tabId}]`,
                 intervalTimeout
             );
-            console.debug('tab', tabId, tab);
+            // console.debug('tab', tabId, tab);
             return new Tab(tabId, tab);
         }
     }
@@ -254,7 +255,7 @@
                 return dictionary;
             }, {});
 
-            console.debug('columnIds', columnIds);
+            // console.debug('columnIds', columnIds);
             return columnIds;
         }
 
@@ -306,7 +307,7 @@
                 .querySelector('td.x-group-hd-container')
                 ?.innerText?.trim();
             if (group) {
-                currentWeek = { group: group.replace(/(^KW|:$)/g, ''), days: [], office: 0, homeOffice: 0 };
+                currentWeek = { group: group.replace(/(^KW|:$)/g, ''), days: [], office: 0, homeOffice: 0, expected: 0 };
                 if (group?.startsWith('KW')) {
                     monthData.weeks.push(currentWeek);
                 } else {
@@ -330,13 +331,14 @@
                     currentWeek.saldo = saldo;
                 }
 
-                console.log('currentWeek', currentWeek);
+                // console.debug('currentWeek', currentWeek);
                 continue;
             }
 
             const day = getGridColumnValue('W');
+            const expected = getGridColumnValue('RA');
             const isHomeOffice = !!getGridColumnValue('HO');
-            const currentDay = { day, date, time, saldo, isHomeOffice };
+            const currentDay = { day, date, time, expected, saldo, isHomeOffice };
             // console.debug('currentDay', currentDay);
             currentWeek.days.push(currentDay);
 
@@ -346,6 +348,11 @@
             }
 
             if (!!time && !isNaN(time)){
+                if (!!expected && !isNaN(expected)){
+                    // console.debug(currentWeek, absolute, expected);
+                    currentWeek.expected += parseInt(expected);
+                }
+
                 if (isHomeOffice){
                     currentWeek.homeOffice++;
                 } else {
@@ -437,7 +444,7 @@
             }
         }
 
-        function createTimeCell(time, saldo, absolute) {
+        function createTimeCell(time, saldo, expected, absolute) {
             if ((!time || time == 0) && (!saldo || saldo == 0)) {
                 return null;
             }
@@ -448,7 +455,20 @@
                 return cellContainer;
             }
 
-            let additionalInfo = createSaldoSpanOuterHTML(saldo);
+            let additionalInfo;
+
+
+            const saldo2 = (time - expected).toFixed(2);
+            additionalInfo = createSaldoSpanOuterHTML(saldo2);
+
+            const isOffset = Math.abs(saldo - saldo2) > 0.1;
+            if (isOffset) {
+                // console.debug(time, expected, saldo, saldo2, Math.abs(saldo - saldo2));
+
+                additionalInfo += '*'
+            }
+
+
             const absoluteSpan = createSaldoSpanOuterHTML(absolute);
             if (absoluteSpan) {
                 additionalInfo += ' => ' + absoluteSpan;
@@ -492,7 +512,7 @@
 
                 let weekCells = [];
                 for (var day of days) {
-                    weekCells.push(createTimeCell(day.time, day.saldo));
+                    weekCells.push(createTimeCell(day.time, day.saldo, day.expected));
                 }
 
                 const missingDays = 7 - days.length;
@@ -517,7 +537,7 @@
                 tableContainer.addTableRow([
                     weekData.group,
                     ...weekCells,
-                    createTimeCell(weekData.time, weekData.saldo, weekData.absolute),
+                    createTimeCell(weekData.time, weekData.saldo, weekData.expected, weekData.absolute),
                     createHomeOfficeCell(weekData.office, weekData.homeOffice),
                 ]);
             }

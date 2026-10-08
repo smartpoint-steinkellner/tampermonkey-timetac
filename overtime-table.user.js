@@ -218,12 +218,27 @@
     }
 
     function createSaldoSpanOuterHTML(saldo) {
-        if (isNaN(saldo)) {
+        if (saldo === null || saldo === undefined || isNaN(saldo)) {
             return null;
         }
 
         const saldoClass = saldo < 0 ? 'font-red' : 'font-green';
         return `<span class="${saldoClass}">${saldo}</span>`;
+    }
+
+    function createDateSpanOuterHtml(date, isHomeOffice) {
+        if (!date)
+        {
+            return date;
+        }
+
+        const parts = date.split('.');
+        const formatted = parts.length > 1
+            ? `${parts[0]}.${parts[1]}`
+            : date;
+
+        const dateClass = isHomeOffice ? 'font-red' : 'font-green';
+        return `<span class="${dateClass}">${formatted}</span>`;
     }
 
     class DataGrid {
@@ -436,7 +451,12 @@
         ));
 
         const weekDays = ['Mon', 'Die', 'Mit', 'Don', 'Fre', 'Sam', 'Son'];
-        const tableContainer = createTableContainer(['KW', ...weekDays, '&sum;', 'B | HO']);
+        const tableContainer = createTableContainer([
+            'KW',
+            ...weekDays,
+            '&sum;',
+            '<span class="font-green">B</span> | <span class="font-red">HO</span>'
+        ]);
 
         function* createEmptyCells(count) {
             for (var i = 0; i < count; i++) {
@@ -444,19 +464,22 @@
             }
         }
 
-        function createTimeCell(time, saldo, expected, absolute) {
+        function createTimeCell(date, time, saldo, expected, absolute, isHomeOffice) {
             if ((!time || time == 0) && (!saldo || saldo == 0)) {
                 return null;
             }
 
+            const dateTime = date
+                ? `${createDateSpanOuterHtml(date, isHomeOffice)}<br />${time}`
+                : time;
+
             const cellContainer = document.createElement('div');
             if (saldo == 'nm') {
-                cellContainer.innerHTML = !!time ? `${time}<br />Heute` : 'Heute';
+                cellContainer.innerHTML = !!time ? `${dateTime}<br />Heute` : 'Heute';
                 return cellContainer;
             }
 
             let additionalInfo;
-
 
             const saldo2 = (time - expected).toFixed(2);
             additionalInfo = createSaldoSpanOuterHTML(saldo2);
@@ -468,13 +491,12 @@
                 additionalInfo += '*'
             }
 
-
             const absoluteSpan = createSaldoSpanOuterHTML(absolute);
             if (absoluteSpan) {
                 additionalInfo += ' => ' + absoluteSpan;
             }
 
-            cellContainer.innerHTML = `${time}<br />${additionalInfo}`;
+            cellContainer.innerHTML = `${dateTime}<br />${additionalInfo}`;
             return cellContainer;
         }
 
@@ -512,7 +534,7 @@
 
                 let weekCells = [];
                 for (var day of days) {
-                    weekCells.push(createTimeCell(day.time, day.saldo, day.expected));
+                    weekCells.push(createTimeCell(day.date, day.time, day.saldo, day.expected, null, day.isHomeOffice));
                 }
 
                 const missingDays = 7 - days.length;
@@ -537,7 +559,7 @@
                 tableContainer.addTableRow([
                     weekData.group,
                     ...weekCells,
-                    createTimeCell(weekData.time, weekData.saldo, weekData.expected, weekData.absolute),
+                    createTimeCell(null, weekData.time, weekData.saldo, weekData.expected, weekData.absolute),
                     createHomeOfficeCell(weekData.office, weekData.homeOffice),
                 ]);
             }
